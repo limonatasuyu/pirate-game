@@ -6,7 +6,7 @@ import { AttackArrow } from "./attack-arrow.js";
 import { cancelAllAnimationFrames } from "./utils.js";
 
 export class Player {
-  constructor(scene, camera, domElement, gameState) {
+  constructor(scene, camera, domElement, enemyManager) {
     this.scene = scene;
     this.camera = camera;
 
@@ -17,7 +17,6 @@ export class Player {
     this._vector3 = new THREE.Vector3();
 
     // Camera position presets
-    this.POSITION_DEFAULT = initialCameraPosition.clone();
     this.POSITION_ATTACK_LEFT = new THREE.Vector3(0, 7, -10);
     this.POSITION_ATTACK_RIGHT = new THREE.Vector3(0, 7, 10);
 
@@ -32,7 +31,7 @@ export class Player {
 
     // Setup camera controls
     this.setupControls(domElement);
-    this.setupEventListeners(gameState);
+    this.setupEventListeners(enemyManager);
   }
 
   setDefaultCameraAzimuthAngle() {
@@ -80,7 +79,7 @@ export class Player {
     return this.health; // Return the updated health
   }
 
-  setupEventListeners(gameState) {
+  setupEventListeners(enemyManager) {
     // Use a single event handler with a flag for state tracking
     this.isInAttackMode = false;
 
@@ -90,7 +89,7 @@ export class Player {
         this.switchToAttackPosition();
       }
       if (e.button === 0 && this.isInAttackMode) {
-        this.fireCannonBall(gameState.enemyManager);
+        this.fireCannonBall(enemyManager);
       }
     };
     document.addEventListener("mousedown", this.handleMouseDown);
@@ -156,7 +155,6 @@ export class Player {
         new THREE.Vector3(-5, 0, 20),
       ]);
     } else if (direction === "right") {
-      // Example default curve points
       this.attackArrow.updateCurve([
         new THREE.Vector3(0, 0, 0),
         new THREE.Vector3(0, 10, -10),
@@ -205,7 +203,7 @@ export class Player {
       0.04282574486378742,
       0.7058087244975518
     );
-    this.camera.position.copy(this.POSITION_DEFAULT);
+    this.camera.position.copy(initialCameraPosition);
     this.setDefaultCameraAzimuthAngle();
     this.removeAttackArrow();
   }

@@ -1,7 +1,8 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { PlaySound } from "./utils.js";
 import { customRequestAnimationFrame } from "./utils.js";
+import { CannonBallModel } from "./models.js";
+
 class AttackArrow {
   constructor(ship) {
     this.ship = ship;
@@ -34,10 +35,9 @@ class AttackArrow {
 
   fireCannonBall(enemyManager) {
     PlaySound("assets/sounds/cannon-fire.mp3", 0.7);
-    const loader = new GLTFLoader();
 
-    loader.load("assets/models/cannon-ball.glb", (gltf) => {
-      const cannonBall = gltf.scene;
+    CannonBallModel.getModelCopy().then(({ model }) => {
+      const cannonBall = model;
       cannonBall.scale.set(0.3, 0.3, 0.3);
 
       this.ship.model.add(cannonBall);

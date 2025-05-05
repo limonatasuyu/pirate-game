@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { Water } from "three/addons/objects/Water.js";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+
 export class Environment {
   constructor(scene, renderer) {
     this.scene = scene;
