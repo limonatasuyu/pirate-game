@@ -56,14 +56,13 @@ class EnemyShip {
     const otherEnemyPositions = otherEnemyShips
       .filter((enemy) => enemy.model)
       .map((enemy) => enemy.model.position);
-    
+
     EnemyShipModel.getModelCopy(otherEnemyPositions, getRandomPosition, getRandomRotation)
       .then(({ model, animations }) => {
         this.model = model;
         this.animations = animations;
-        
+
         this.scene.add(model);
-        
         this.addHealthBar();
         if (callback) callback();
       })
@@ -115,7 +114,7 @@ class EnemyShip {
   }
 
   attackToPlayer(deltaTime, playerInstance, playerPosition) {
-    if (!this.enemyManager.isEnemyExists(this.id)) return;
+    if (!this.isExists() || this.isDying) return;
     const currentPosition = this.model.position;
 
     const direction = new THREE.Vector3(
@@ -159,7 +158,7 @@ class EnemyShip {
       this.model.position.z
     );
     const points = [raisedModelPosition, raisedPlayerPositon];
-    
+
     CannonBallModel.getModelCopy(points[0]).then(({ model }) => {
       const cannonBall = model;
       this.scene.add(cannonBall);
@@ -176,8 +175,7 @@ class EnemyShip {
       const animateCannonBall = (timestamp) => {
         if (startTime === null) startTime = timestamp;
         const elapsedTime = (timestamp - startTime) / 1000; // Convert to seconds
-        const isEnemyExists = this.enemyManager.isEnemyExists(this.id);
-        if (isEnemyExists && elapsedTime < totalDuration) {
+        if (this.isExists() && elapsedTime < totalDuration) {
           // Calculate progress based on consistent speed
           const progress = elapsedTime / totalDuration;
           const position = curve.getPointAt(progress);
@@ -219,6 +217,36 @@ class EnemyShip {
     } else {
       this.attackToPlayer(deltaTime, playerInstance, playerPosition);
     }
+  }
+
+  pushBack(playerPosition) {
+    const direction = playerPosition.clone().sub(this.model.position).normalize();
+    const reversedDirection = direction.multiplyScalar(-25);
+    const targetPosition = this.model.position.clone().add(reversedDirection);
+    targetPosition.y = 0; // Ensure y remains at 0
+    
+    const duration = 300; // milliseconds
+    const startTime = Date.now();
+    const startPosition = this.model.position.clone();
+
+    const animatePushBack = () => {
+      const currentTime = Date.now();
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      
+      this.model.position.lerpVectors(startPosition, targetPosition, easeOut);
+      
+      if (progress < 1) {
+        customRequestAnimationFrame(animatePushBack);
+      }
+    };
+    
+    animatePushBack();
+  }
+
+  isExists() {
+    return this.enemyManager.isEnemyExists(this.id);
   }
 }
 export default EnemyShip;

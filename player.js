@@ -2,8 +2,8 @@ import * as THREE from "three";
 import { Ship } from "./ship.js";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { initialCameraPosition } from "./constants.js";
-import { AttackArrow } from "./attack-arrow.js";
-import { cancelAllAnimationFrames } from "./utils.js";
+import { AttackProjectile } from "./attack-projectile.js";
+import { cancelAllAnimationFrames, customRequestAnimationFrame } from "./utils.js";
 
 export class Player {
   constructor(scene, camera, domElement, enemyManager) {
@@ -55,8 +55,8 @@ export class Player {
   }
 
   fireCannonBall(enemyManager) {
-    if (this.attackArrow) {
-      this.attackArrow.fireCannonBall(enemyManager);
+    if (this.attackProjectile) {
+      this.attackProjectile.fireCannonBall(enemyManager);
     }
   }
 
@@ -65,6 +65,32 @@ export class Player {
     this.healthBarGreen = document.querySelector("#health-bar-green");
     this.healthBarRed = document.querySelector("#health-bar-red");
     this.updatePlayerHealth(0);
+  }
+
+  pushBack(enemyPosition) {
+    const direction = enemyPosition.clone().sub(this.ship.model.position).normalize();
+    const reversedDirection = direction.multiplyScalar(-25);
+    const targetPosition = this.ship.model.position.clone().add(reversedDirection);
+    targetPosition.y = 0; // Ensure y remains at 0
+    
+    const duration = 300; // milliseconds
+    const startTime = Date.now();
+    const startPosition = this.ship.model.position.clone();
+
+    const animatePushBack = () => {
+      const currentTime = Date.now();
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      
+      this.ship.model.position.lerpVectors(startPosition, targetPosition, easeOut);
+      
+      if (progress < 1) {
+        customRequestAnimationFrame(animatePushBack);
+      }
+    };
+    
+    animatePushBack();
   }
 
   updatePlayerHealth(difference) {
@@ -76,11 +102,10 @@ export class Player {
     this.healthBarGreen.style.width = `${this.health}%`;
     this.healthBarRed.style.width = `${100 - this.health}%`;
 
-    return this.health; // Return the updated health
+    return this.health;
   }
 
   setupEventListeners(enemyManager) {
-    // Use a single event handler with a flag for state tracking
     this.isInAttackMode = false;
 
     this.handleMouseDown = (e) => {
@@ -128,34 +153,28 @@ export class Player {
       this.ship.update(deltaTime);
     }
 
-    // if (this.attackArrow) {
-    //   this.attackArrow.update();
-    // }
-    // Only update camera controls if controls exist
     this.controls?.update();
 
-    // Apply constraints after control update
     if (this.controls?.isLocked) {
       this.applyAzimuthConstraints();
 
-      if (this.attackArrow) {
-        this.attackArrow.update(this._euler.y, this._euler.x);
+      if (this.attackProjectile) {
+        this.attackProjectile.update(this._euler.y, this._euler.x);
       }
     }
   }
 
-  addAttackArrow(direction) {
-    this.attackArrow = new AttackArrow(this.ship);
+  addAttackProjectile(direction) {
+    this.attackProjectile = new AttackProjectile(this.ship);
 
     if (direction === "left") {
-      // Example default curve points
-      this.attackArrow.updateCurve([
+      this.attackProjectile.updateCurve([
         new THREE.Vector3(0, 0, 0),
         new THREE.Vector3(0, 10, 10),
         new THREE.Vector3(-5, 0, 20),
       ]);
     } else if (direction === "right") {
-      this.attackArrow.updateCurve([
+      this.attackProjectile.updateCurve([
         new THREE.Vector3(0, 0, 0),
         new THREE.Vector3(0, 10, -10),
         new THREE.Vector3(-5, 0, -20),
@@ -165,14 +184,14 @@ export class Player {
     }
   }
 
-  removeAttackArrow() {
-    if (this.attackArrow) {
-      if (this.attackArrow.curveMesh) {
-        this.attackArrow.curveMesh.removeFromParent();
-        this.attackArrow.curveMesh.geometry.dispose();
-        this.attackArrow.curveMesh.material.dispose();
+  removeAttackProjectile() {
+    if (this.attackProjectile) {
+      if (this.attackProjectile.curveMesh) {
+        this.attackProjectile.curveMesh.removeFromParent();
+        this.attackProjectile.curveMesh.geometry.dispose();
+        this.attackProjectile.curveMesh.material.dispose();
       }
-      this.attackArrow = null;
+      this.attackProjectile = null;
     }
   }
 
@@ -185,11 +204,11 @@ export class Player {
     if (currentAzimuthAngle > Math.PI / 2) {
       this.camera.position.copy(this.POSITION_ATTACK_LEFT);
       this.setAttackCameraAzimuthAngleForLeft();
-      this.addAttackArrow("left");
+      this.addAttackProjectile("left");
     } else if (!this.splitAzimuthRange) {
       this.camera.position.copy(this.POSITION_ATTACK_RIGHT);
       this.setAttackCameraAzimuthAngleForRight();
-      this.addAttackArrow("right");
+      this.addAttackProjectile("right");
     }
   }
 
@@ -205,7 +224,7 @@ export class Player {
     );
     this.camera.position.copy(initialCameraPosition);
     this.setDefaultCameraAzimuthAngle();
-    this.removeAttackArrow();
+    this.removeAttackProjectile();
   }
 
   // Simplified to avoid redundant method call in update
@@ -244,6 +263,11 @@ export class Player {
 
   gameOver() {
     document.querySelector("#game-over-screen").style.display = "block";
+    cancelAllAnimationFrames()
+  }
+
+  youWon() {
+    document.querySelector("#you-won-screen").style.display = "flex";
     cancelAllAnimationFrames()
   }
 

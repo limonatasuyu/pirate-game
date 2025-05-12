@@ -3,7 +3,7 @@ import { PlaySound } from "./utils.js";
 import { customRequestAnimationFrame } from "./utils.js";
 import { CannonBallModel } from "./models.js";
 
-class AttackArrow {
+class AttackProjectile {
   constructor(ship) {
     this.ship = ship;
     this.model = null;
@@ -76,6 +76,7 @@ class AttackArrow {
           cannonBall.position.copy(position);
 
           for (const enemy of enemyManager.enemies) {
+            if (enemy.isDying) continue;
             const distanceBetweenCannonBallAndEnemy = cannonBall.getWorldPosition(new THREE.Vector3()).distanceTo(enemy.model.getWorldPosition(new THREE.Vector3()));
             const threshold = 50
             if (distanceBetweenCannonBallAndEnemy < threshold && !isHit) {
@@ -108,6 +109,7 @@ class AttackArrow {
 
       customRequestAnimationFrame(animateCannonBall);
     });
+
   }
 
   updateCurve(points) {
@@ -155,4 +157,4 @@ class AttackArrow {
   }
 }
 
-export { AttackArrow };
+export { AttackProjectile };

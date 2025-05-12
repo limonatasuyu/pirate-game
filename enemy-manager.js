@@ -1,31 +1,35 @@
 import * as THREE from "three";
 import EnemyShip from "./enemy-ship.js";
-const enemyNumber = 10;
+import { isColliding } from "./utils.js";
+import { getRandomDestination } from "./utils.js";
+const enemyNumber = 3;
 
 export class EnemyManager {
   constructor(scene) {
     this.scene = scene;
+    this.isEnemiesSpawned = false;
     this.enemies = [];
     this.addEnemies();
+    this.isDying = false;
   }
 
   addEnemies() {
-    const addNextEnemy = (index = 0) => {
-      if (index >= enemyNumber) return;
-      const enemy = new EnemyShip(this.scene, this);
-      this.enemies.push(enemy);
-
-      // Only pass enemies that already have models loaded
-      const loadedEnemies = this.enemies.filter((e) => e.model !== undefined);
-
-      // Wait for this enemy to load before adding the next one
-      enemy.addShip(() => {
-        addNextEnemy(index + 1);
-      }, loadedEnemies);
-    };
-
-    addNextEnemy();
+    this.addNextEnemy();
+    this.isEnemiesSpawned = true;
   }
+
+  addNextEnemy(index = 0) {
+    if (index >= enemyNumber) return;
+    const enemy = new EnemyShip(this.scene, this);
+    this.enemies.push(enemy);
+
+    const loadedEnemies = this.enemies.filter((e) => e.model !== undefined);
+
+    enemy.addShip(() => {
+      this.addNextEnemy(index + 1);
+    }, loadedEnemies);
+  }
+
 
   hasEnemies() {
     return this.enemies.length > 0 && this.enemies[0].model !== undefined;
@@ -40,25 +44,45 @@ export class EnemyManager {
   }
 
   update(deltaTime, playerInstance, playerPosition) {
+    if (this.enemies.length === 0 && this.isEnemiesSpawned) {
+        playerInstance.youWon();
+      };
     for (const enemy of this.enemies) {
-      // Update animation if mixer exists
       if (enemy.mixer) {
-        enemy.mixer.update(deltaTime / 4); // slow down the animation
+        enemy.mixer.update(deltaTime / 4);
       }
 
-      // Move enemy if it has a model and there's a valid player position
       if (enemy.model && playerInstance && playerPosition) {
-        // Call the enemy's move method or implement movement logic
         enemy.updateMovement(deltaTime, playerInstance, playerPosition);
+      }
+
+      if (!enemy.isDying && isColliding(playerPosition, enemy.model.position)) {
+        enemy.isHostile = true;
+        enemy.health -= 1;
+        enemy.updateHealthBar();
+        playerInstance.updatePlayerHealth(-1);
+        playerInstance.pushBack(enemy.model.position);
+        enemy.pushBack(playerPosition);
+        if (enemy.health <= 0) {
+          this.removeEnemy(enemy);
+        }
+      }
+
+      for (const secondEnemy of this.enemies) {
+        if (secondEnemy.id === enemy.id) continue;
+
+        if (!enemy.isDying && isColliding(enemy.model.position, secondEnemy.model.position)) {
+          enemy.pushBack(secondEnemy.model.position);
+          enemy.destination = getRandomDestination();
+        }
       }
     }
   }
 
   removeEnemy(enemy) {
+    enemy.isDying=true;
     if (enemy.model) {
-      // Create a death/removal animation
       if (enemy.animations) {
-        // Store the mixer on the enemy object so it can be updated
         enemy.mixer = new THREE.AnimationMixer(enemy.model);
         const action1 = enemy.mixer.clipAction(enemy.animations[0]);
         const action2 = enemy.mixer.clipAction(enemy.animations[1]);
