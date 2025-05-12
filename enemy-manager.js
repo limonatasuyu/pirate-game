@@ -1,8 +1,7 @@
 import * as THREE from "three";
 import EnemyShip from "./enemy-ship.js";
-import { isColliding } from "./utils.js";
+import { isColliding, PlaySound } from "./utils.js";
 import { getRandomDestination } from "./utils.js";
-const enemyNumber = 3;
 
 export class EnemyManager {
   constructor(scene) {
@@ -19,7 +18,7 @@ export class EnemyManager {
   }
 
   addNextEnemy(index = 0) {
-    if (index >= enemyNumber) return;
+    if (index >= 10) return;
     const enemy = new EnemyShip(this.scene, this);
     this.enemies.push(enemy);
 
@@ -43,10 +42,15 @@ export class EnemyManager {
     return objectWorldPosition;
   }
 
+  updateTotalEnemiesUI() {
+    const totalEnemiesUI = document.querySelector("#total-enemies-ui");
+    totalEnemiesUI.textContent = `Total Enemies: ${this.enemies.length}`;
+  }
+
   update(deltaTime, playerInstance, playerPosition) {
     if (this.enemies.length === 0 && this.isEnemiesSpawned) {
-        playerInstance.youWon();
-      };
+      playerInstance.youWon();
+    }
     for (const enemy of this.enemies) {
       if (enemy.mixer) {
         enemy.mixer.update(deltaTime / 4);
@@ -57,6 +61,7 @@ export class EnemyManager {
       }
 
       if (!enemy.isDying && isColliding(playerPosition, enemy.model.position)) {
+        PlaySound("assets/sounds/crash-sound.mp3", 0.5);
         enemy.isHostile = true;
         enemy.health -= 1;
         enemy.updateHealthBar();
@@ -80,7 +85,7 @@ export class EnemyManager {
   }
 
   removeEnemy(enemy) {
-    enemy.isDying=true;
+    enemy.isDying = true;
     if (enemy.model) {
       if (enemy.animations) {
         enemy.mixer = new THREE.AnimationMixer(enemy.model);
@@ -96,23 +101,24 @@ export class EnemyManager {
         enemy.mixer.addEventListener("finished", () => {
           this.scene.remove(enemy.model);
           this.enemies = this.enemies.filter((i) => i.id !== enemy.id);
+          this.updateTotalEnemiesUI();
         });
 
         action1.play();
         action2.play();
 
         // Keep the enemy in the array until animation completes
-        //this.enemies.push(enemy);
+        // this.enemies.push(enemy);
       } else {
         // If no animations, remove immediately
         this.scene.remove(enemy.model);
         this.enemies = this.enemies.filter((i) => i.id !== enemy.id);
+        this.updateTotalEnemiesUI();
       }
     }
   }
 
   isEnemyExists(enemyId) {
-    //console.log("this.enemies: ", this.enemies);
     return Boolean(this.enemies.some((i) => i.id === enemyId));
   }
 }
